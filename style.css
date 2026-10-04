@@ -133,6 +133,10 @@ h1 { font-size: 1.9rem; margin: 24px 0 4px; text-align: center; }
   line-height: 1;
 }
 .prompt-image {
+  /* Scale small source images up to fill the space, without overflowing. */
+  width: min(100%, 55vh, 440px);
+  width: min(100%, 55dvh, 440px);
+  height: auto;
   max-width: 100%;
   max-height: 55vh;
   max-height: 55dvh;
