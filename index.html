@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Major Trainer">
+  <title>Major System Trainer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+
+    <!-- Menu -->
+    <section id="screen-menu" class="screen active">
+      <h1>Major System Trainer</h1>
+      <p class="subtitle">Rounds of 10. Be honest with yourself.</p>
+      <div id="manifest-warning" class="warning" hidden></div>
+      <div class="mode-list">
+        <button class="mode" data-mode="numbers">
+          <span class="mode-title">Numbers</span>
+          <span class="mode-desc">See a number, recall its image</span>
+        </button>
+        <button class="mode" data-mode="images">
+          <span class="mode-title">Images</span>
+          <span class="mode-desc">See an image, recall its number</span>
+        </button>
+        <button class="mode" data-mode="mixed">
+          <span class="mode-title">Mixed</span>
+          <span class="mode-desc">Random mix of numbers and images</span>
+        </button>
+      </div>
+      <p id="item-count" class="muted"></p>
+    </section>
+
+    <!-- Question -->
+    <section id="screen-question" class="screen">
+      <header class="q-header">
+        <button id="btn-quit" class="link" aria-label="Back to menu">&larr; Menu</button>
+        <span id="progress"></span>
+        <span id="live-score"></span>
+      </header>
+      <div id="prompt" class="prompt">
+        <div id="prompt-number" class="prompt-number" hidden></div>
+        <img id="prompt-image" class="prompt-image" alt="" hidden>
+      </div>
+      <div class="answer-buttons">
+        <button id="btn-dont-know" class="answer dont-know">I don't know</button>
+        <button id="btn-know" class="answer know">I know</button>
+      </div>
+      <p class="key-hint muted">Keyboard: &larr; I don't know &middot; &rarr; I know</p>
+    </section>
+
+    <!-- Results -->
+    <section id="screen-results" class="screen">
+      <h2>Round complete</h2>
+      <div id="final-score" class="final-score"></div>
+      <div id="missed-section">
+        <h3 id="missed-title"></h3>
+        <ul id="missed-list" class="missed-list"></ul>
+      </div>
+      <div class="result-buttons">
+        <button id="btn-again" class="primary">Play again</button>
+        <button id="btn-menu" class="secondary">Menu</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="manifest.js" charset="utf-8"></script>
+  <script src="app.js"></script>
+</body>
+</html>
