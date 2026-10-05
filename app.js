@@ -128,43 +128,102 @@
     } else {
       $("missed-title").textContent = "To review (" + state.missed.length + "):";
       state.missed.forEach(function (q) {
-        var li = document.createElement("li");
-
-        var img = document.createElement("img");
-        img.src = q.item.src;
-        img.alt = "Image for " + q.item.num;
-        img.loading = "lazy";
-        li.appendChild(img);
-
-        var num = document.createElement("div");
-        num.className = "missed-num";
-        num.textContent = q.item.num;
-        li.appendChild(num);
-
-        if (q.item.word) {
-          var word = document.createElement("div");
-          word.className = "missed-word";
-          word.textContent = q.item.word;
-          li.appendChild(word);
-        }
-
-        if (state.mode === "mixed") {
-          var shown = document.createElement("div");
-          shown.className = "missed-shown";
-          shown.textContent = q.type === "number" ? "shown as number" : "shown as image";
-          li.appendChild(shown);
-        }
-
-        list.appendChild(li);
+        var extra = state.mode === "mixed"
+          ? (q.type === "number" ? "shown as number" : "shown as image")
+          : null;
+        list.appendChild(buildCard(q.item, extra));
       });
     }
 
     showScreen("results");
   }
 
+  // Card with image, number and word. Shared by the results and review grids.
+  function buildCard(item, extraText) {
+    var li = document.createElement("li");
+
+    var img = document.createElement("img");
+    img.src = item.src;
+    img.alt = "Image for " + item.num;
+    img.loading = "lazy";
+    li.appendChild(img);
+
+    var num = document.createElement("div");
+    num.className = "card-num";
+    num.textContent = item.num;
+    li.appendChild(num);
+
+    if (item.word) {
+      var word = document.createElement("div");
+      word.className = "card-word";
+      word.textContent = item.word;
+      li.appendChild(word);
+    }
+
+    if (extraText) {
+      var extra = document.createElement("div");
+      extra.className = "card-extra";
+      extra.textContent = extraText;
+      li.appendChild(extra);
+    }
+
+    return li;
+  }
+
+  // ---------- Review ----------
+
+  // 11 sets: 0-9, 00-09, 10-19, ... 90-99.
+  var SETS = [];
+  for (var s = 0; s < EXPECTED.length; s += 10) SETS.push(EXPECTED.slice(s, s + 10));
+
+  function setLabel(set) { return set[0] + "–" + set[set.length - 1]; }
+
+  var reviewIndex = 0;
+
+  function initSetPicker() {
+    var picker = $("set-picker");
+    SETS.forEach(function (set, i) {
+      var b = document.createElement("button");
+      b.textContent = setLabel(set);
+      b.addEventListener("click", function () { openReview(i); });
+      picker.appendChild(b);
+    });
+  }
+
+  function openReview(index) {
+    reviewIndex = (index + SETS.length) % SETS.length;
+    var set = SETS[reviewIndex];
+
+    var byNum = {};
+    items.forEach(function (it) { byNum[it.num] = it; });
+
+    $("review-title").textContent = "Review " + setLabel(set);
+
+    var buttons = $("set-picker").children;
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.toggle("active", i === reviewIndex);
+    }
+
+    var grid = $("review-grid");
+    grid.innerHTML = "";
+    set.forEach(function (n) {
+      if (byNum[n]) {
+        grid.appendChild(buildCard(byNum[n], null));
+      } else {
+        var li = document.createElement("li");
+        li.className = "missing";
+        li.innerHTML = '<div class="missing-box">no image</div><div class="card-num"></div>';
+        li.querySelector(".card-num").textContent = n;
+        grid.appendChild(li);
+      }
+    });
+
+    showScreen("review");
+  }
+
   // ---------- Wiring ----------
 
-  var modeButtons = document.querySelectorAll(".mode");
+  var modeButtons = document.querySelectorAll(".mode[data-mode]");
   for (var i = 0; i < modeButtons.length; i++) {
     modeButtons[i].addEventListener("click", function () {
       startRound(this.getAttribute("data-mode"));
@@ -177,11 +236,21 @@
   $("btn-again").addEventListener("click", function () { startRound(state.mode); });
   $("btn-menu").addEventListener("click", function () { showScreen("menu"); });
 
+  $("btn-review").addEventListener("click", function () { openReview(0); });
+  $("btn-review-quit").addEventListener("click", function () { showScreen("menu"); });
+  $("btn-set-prev").addEventListener("click", function () { openReview(reviewIndex - 1); });
+  $("btn-set-next").addEventListener("click", function () { openReview(reviewIndex + 1); });
+
   document.addEventListener("keydown", function (e) {
-    if (!$("screen-question").classList.contains("active")) return;
-    if (e.key === "ArrowRight") { e.preventDefault(); answer(true); }
-    else if (e.key === "ArrowLeft") { e.preventDefault(); answer(false); }
+    if ($("screen-question").classList.contains("active")) {
+      if (e.key === "ArrowRight") { e.preventDefault(); answer(true); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); answer(false); }
+    } else if ($("screen-review").classList.contains("active")) {
+      if (e.key === "ArrowRight") { e.preventDefault(); openReview(reviewIndex + 1); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); openReview(reviewIndex - 1); }
+    }
   });
 
+  initSetPicker();
   initMenu();
 })();

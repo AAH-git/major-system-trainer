@@ -176,7 +176,7 @@ h2 { text-align: center; margin: 24px 0 8px; }
 }
 #missed-section h3 { font-size: 1.05rem; margin: 8px 0 12px; }
 
-.missed-list {
+.card-grid {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -184,7 +184,7 @@ h2 { text-align: center; margin: 24px 0 8px; }
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
 }
-.missed-list li {
+.card-grid li {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -195,15 +195,64 @@ h2 { text-align: center; margin: 24px 0 8px; }
   text-align: center;
   gap: 6px;
 }
-.missed-list img {
+.card-grid img {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: contain;
   border-radius: 10px;
 }
-.missed-num { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.missed-word { color: var(--muted); }
-.missed-shown { font-size: 0.75rem; color: var(--muted); }
+.card-num { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.card-word { color: var(--muted); }
+.card-extra { font-size: 0.75rem; color: var(--muted); }
+
+/* ---------- Review ---------- */
+.section-label {
+  margin: 24px 0 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.set-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 4px 0 16px;
+}
+.set-picker button {
+  padding: 8px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.set-picker button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.review-grid { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 600px) {
+  .review-grid { grid-template-columns: repeat(5, 1fr); }
+  .set-picker { grid-template-columns: repeat(11, 1fr); gap: 6px; }
+  .set-picker button { font-size: 0.8rem; }
+}
+
+.card-grid li.missing { border-style: dashed; opacity: 0.6; }
+.missing-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 
 .result-buttons {
   display: grid;
