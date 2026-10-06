@@ -44,7 +44,7 @@
       warning.hidden = false;
       warning.textContent = "No images found. Add your images to the images/ folder and run " +
         "tools/build-manifest (see README).";
-      var modes = document.querySelectorAll(".mode");
+      var modes = document.querySelectorAll(".mode:not(#btn-stats)");
       for (var i = 0; i < modes.length; i++) modes[i].disabled = true;
     } else {
       var have = {};
@@ -106,6 +106,7 @@
   function answer(knewIt) {
     if (!$("screen-question").classList.contains("active")) return;
     var q = state.questions[state.index];
+    recordAnswer(q.type, q.item.num, knewIt);
     if (knewIt) state.known++;
     else state.missed.push(q);
 
@@ -221,6 +222,152 @@
     showScreen("review");
   }
 
+  // ---------- Performance stats (saved in this browser only) ----------
+
+  var STATS_KEY = "majorTrainer.stats.v1";
+  var storageOk = true;
+  var stats = loadStats();
+  var statsView = { type: "number", sort: "number" };
+
+  function emptyStats() { return { number: {}, image: {} }; }
+
+  function loadStats() {
+    var raw = null;
+    try { raw = localStorage.getItem(STATS_KEY); } catch (e) { storageOk = false; }
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.number && parsed.image) return parsed;
+    } catch (e) { /* corrupt data: start fresh */ }
+    return emptyStats();
+  }
+
+  function saveStats() {
+    try {
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+      storageOk = true;
+    } catch (e) {
+      storageOk = false;
+    }
+  }
+
+  function recordAnswer(type, num, knew) {
+    var entry = stats[type][num] || (stats[type][num] = { known: 0, total: 0 });
+    entry.total++;
+    if (knew) entry.known++;
+    saveStats();
+  }
+
+  function openStats(type, sort) {
+    statsView.type = type;
+    statsView.sort = sort;
+    renderStats();
+    showScreen("stats");
+  }
+
+  function renderStats() {
+    var data = stats[statsView.type];
+
+    var tabs = document.querySelectorAll(".tab");
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].getAttribute("data-type") === statsView.type;
+      tabs[i].classList.toggle("active", on);
+      tabs[i].setAttribute("aria-selected", on ? "true" : "false");
+    }
+    var sorts = document.querySelectorAll(".sort");
+    for (var j = 0; j < sorts.length; j++) {
+      sorts[j].classList.toggle("active", sorts[j].getAttribute("data-sort") === statsView.sort);
+    }
+    $("stats-note").hidden = storageOk;
+
+    var byNum = {};
+    items.forEach(function (it) { byNum[it.num] = it; });
+
+    var rows = EXPECTED.map(function (n, order) {
+      var e = data[n];
+      return {
+        num: n,
+        order: order,
+        item: byNum[n],
+        known: e ? e.known : 0,
+        total: e ? e.total : 0,
+        pct: e && e.total ? e.known / e.total : null
+      };
+    });
+
+    var answers = 0, knownSum = 0, seen = 0;
+    rows.forEach(function (r) {
+      answers += r.total;
+      knownSum += r.known;
+      if (r.total) seen++;
+    });
+    $("stats-summary").textContent = answers === 0
+      ? "No answers yet. Play a round to start tracking."
+      : answers + " answers · " + Math.round(100 * knownSum / answers) + "% known · " +
+        seen + " of " + EXPECTED.length + " seen";
+
+    if (statsView.sort === "weakest") {
+      rows.sort(function (a, b) {
+        if (a.pct === null || b.pct === null) {
+          if (a.pct === null && b.pct === null) return a.order - b.order;
+          return a.pct === null ? 1 : -1;
+        }
+        return (a.pct - b.pct) || (b.total - a.total) || (a.order - b.order);
+      });
+    }
+
+    var list = $("stats-list");
+    list.innerHTML = "";
+    rows.forEach(function (r) { list.appendChild(buildStatsRow(r)); });
+  }
+
+  function buildStatsRow(r) {
+    var li = document.createElement("li");
+    if (r.pct === null) li.className = "unseen";
+
+    if (r.item) {
+      var img = document.createElement("img");
+      img.src = r.item.src;
+      img.alt = "";
+      img.loading = "lazy";
+      li.appendChild(img);
+    } else {
+      li.appendChild(document.createElement("span")).className = "thumb-missing";
+    }
+
+    var label = document.createElement("div");
+    label.className = "stats-label";
+    var num = document.createElement("span");
+    num.className = "stats-num";
+    num.textContent = r.num;
+    label.appendChild(num);
+    if (r.item && r.item.word) {
+      var word = document.createElement("span");
+      word.className = "stats-word";
+      word.textContent = r.item.word;
+      label.appendChild(word);
+    }
+    li.appendChild(label);
+
+    var bar = document.createElement("div");
+    bar.className = "bar";
+    var fill = document.createElement("div");
+    if (r.pct !== null) {
+      fill.className = "bar-fill " + (r.pct < 0.5 ? "low" : r.pct < 0.8 ? "mid" : "high");
+      fill.style.width = Math.round(r.pct * 100) + "%";
+    }
+    bar.appendChild(fill);
+    li.appendChild(bar);
+
+    var pct = document.createElement("div");
+    pct.className = "stats-pct";
+    pct.textContent = r.pct === null
+      ? "—"
+      : Math.round(r.pct * 100) + "% (" + r.known + "/" + r.total + ")";
+    li.appendChild(pct);
+
+    return li;
+  }
+
   // ---------- Wiring ----------
 
   var modeButtons = document.querySelectorAll(".mode[data-mode]");
@@ -240,6 +387,29 @@
   $("btn-review-quit").addEventListener("click", function () { showScreen("menu"); });
   $("btn-set-prev").addEventListener("click", function () { openReview(reviewIndex - 1); });
   $("btn-set-next").addEventListener("click", function () { openReview(reviewIndex + 1); });
+
+  $("btn-stats").addEventListener("click", function () { openStats("number", "number"); });
+  $("btn-stats-quit").addEventListener("click", function () { showScreen("menu"); });
+  var tabButtons = document.querySelectorAll(".tab");
+  for (var t = 0; t < tabButtons.length; t++) {
+    tabButtons[t].addEventListener("click", function () {
+      statsView.type = this.getAttribute("data-type");
+      renderStats();
+    });
+  }
+  var sortButtons = document.querySelectorAll(".sort");
+  for (var so = 0; so < sortButtons.length; so++) {
+    sortButtons[so].addEventListener("click", function () {
+      statsView.sort = this.getAttribute("data-sort");
+      renderStats();
+    });
+  }
+  $("btn-stats-reset").addEventListener("click", function () {
+    if (!confirm("Reset all performance stats? This can't be undone.")) return;
+    stats = emptyStats();
+    try { localStorage.removeItem(STATS_KEY); } catch (e) { /* storage blocked */ }
+    renderStats();
+  });
 
   document.addEventListener("keydown", function (e) {
     if ($("screen-question").classList.contains("active")) {

@@ -39,6 +39,10 @@
           <span class="mode-title">Review</span>
           <span class="mode-desc">Browse all associations, 10 at a time</span>
         </button>
+        <button id="btn-stats" class="mode">
+          <span class="mode-title">Performance</span>
+          <span class="mode-desc">Your % of &ldquo;I know&rdquo; answers for each number</span>
+        </button>
       </div>
       <p id="item-count" class="muted"></p>
     </section>
@@ -74,6 +78,30 @@
         <button id="btn-know" class="answer know">I know</button>
       </div>
       <p class="key-hint muted">Keyboard: &larr; I don't know &middot; &rarr; I know</p>
+    </section>
+
+    <!-- Performance -->
+    <section id="screen-stats" class="screen">
+      <header class="q-header">
+        <button id="btn-stats-quit" class="link" aria-label="Back to menu">&larr; Menu</button>
+        <span>Performance</span>
+        <span></span>
+      </header>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-type="number">Number questions</button>
+        <button class="tab" role="tab" data-type="image">Image questions</button>
+      </div>
+      <p id="stats-note" class="warning" hidden>
+        This browser is blocking storage (e.g. a private window), so your answers aren't being saved.
+      </p>
+      <p id="stats-summary" class="stats-summary"></p>
+      <div class="sort-toggle">
+        <span class="muted">Sort:</span>
+        <button class="sort" data-sort="number">By number</button>
+        <button class="sort" data-sort="weakest">Weakest first</button>
+      </div>
+      <ul id="stats-list" class="stats-list"></ul>
+      <button id="btn-stats-reset" class="secondary reset">Reset stats</button>
     </section>
 
     <!-- Results -->

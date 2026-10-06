@@ -41,6 +41,15 @@ The script reports any missing numbers, duplicates, badly named files and very l
 
 Open `index.html` in your browser by double-clicking it.
 
+## Performance stats
+
+Every "I know" / "I don't know" answer is saved in the browser's own storage (`localStorage`), not on a server.
+Number questions and image questions are counted separately.
+
+- Stats are kept separately on each device and in each browser. On iPhone or iPad, a home-screen icon also has its own stats, separate from Safari.
+- Clearing the browser's site data or cache resets them, and so does the **Reset stats** button.
+- Safari on iPhone and iPad may clear a site's saved data if you don't open it for about 7 days. A site added to the home screen is not affected.
+
 ## 4. Publish
 
 Commit and push to GitHub. On GitHub, go to **Settings → Pages → Build and deployment**, set Source to *Deploy from a branch* and choose `main` / `(root)`.

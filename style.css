@@ -7,6 +7,7 @@
   --accent: #2f5bd3;
   --know: #1f8a4c;
   --dont-know: #c4452f;
+  --mid: #d89a1c;
   --warn-bg: #fff4d6;
   --warn-text: #7a5600;
   --radius: 14px;
@@ -22,6 +23,7 @@
     --accent: #6d8ff0;
     --know: #34b46a;
     --dont-know: #e0644e;
+    --mid: #e3ad3c;
     --warn-bg: #3a3014;
     --warn-text: #f3d27a;
   }
@@ -269,3 +271,95 @@ h2 { text-align: center; margin: 24px 0 8px; }
 }
 .primary { background: var(--accent); color: #fff; border: none; }
 .secondary { background: var(--surface); border: 1px solid var(--border); }
+
+/* ---------- Performance ---------- */
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 8px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.stats-summary { margin: 4px 0 12px; font-size: 0.95rem; }
+
+.sort-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+.sort {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+.sort.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+.stats-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stats-list li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(80px, 1.2fr) 92px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px 6px 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.stats-list img, .thumb-missing {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--bg);
+}
+.stats-label { display: flex; flex-direction: column; min-width: 0; }
+.stats-num { font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.stats-word {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; }
+.bar-fill.low { background: var(--dont-know); }
+.bar-fill.mid { background: var(--mid); }
+.bar-fill.high { background: var(--know); }
+.stats-pct { text-align: right; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.stats-list li.unseen { opacity: 0.5; }
+
+/* On phones, put the bar under the number and word. */
+@media (max-width: 480px) {
+  .stats-list li {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-areas: "img label pct" "img bar bar";
+    row-gap: 6px;
+  }
+  .stats-list li > :nth-child(1) { grid-area: img; }
+  .stats-label { grid-area: label; flex-direction: row; align-items: baseline; gap: 8px; }
+  .bar { grid-area: bar; }
+  .stats-pct { grid-area: pct; }
+}
+
+.reset { margin-top: 20px; }
