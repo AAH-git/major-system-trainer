@@ -25,15 +25,7 @@
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
     $("screen-" + name).classList.add("active");
     window.scrollTo(0, 0);
-  }
-
-  function shuffle(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-    return a;
+    if (name === "menu") updateDueLine();
   }
 
   // ---------- Menu ----------
@@ -66,11 +58,12 @@
     state.index = 0;
     state.known = 0;
     state.missed = [];
-    state.questions = shuffle(items).slice(0, ROUND_LENGTH).map(function (item) {
-      var type = mode === "numbers" ? "number"
-               : mode === "images" ? "image"
-               : (Math.random() < 0.5 ? "number" : "image");
-      return { item: item, type: type };
+    // Spaced repetition picks the cards; a card id says which way round to ask ("n:07" / "i:07").
+    var ids = SRS.buildRound(srs.cards, cardPool(mode), ROUND_LENGTH, Date.now(), srs.params,
+      { newPriority: newCardPriority });
+    var byNum = itemsByNum();
+    state.questions = ids.map(function (id) {
+      return { id: id, item: byNum[id.slice(2)], type: id.charAt(0) === "n" ? "number" : "image" };
     });
 
     // Preload every image used this round (prompts and the results thumbnails).
@@ -107,6 +100,7 @@
     if (!$("screen-question").classList.contains("active")) return;
     var q = state.questions[state.index];
     recordAnswer(q.type, q.item.num, knewIt);
+    scheduleAnswer(q.id, knewIt);
     if (knewIt) state.known++;
     else state.missed.push(q);
 
@@ -257,6 +251,185 @@
     saveStats();
   }
 
+  // ---------- Spaced repetition (FSRS-6, see srs.js) ----------
+
+  var SRS_KEY = "majorTrainer.srs.v1";
+  var SRS_LOG_KEY = "majorTrainer.srslog.v1";
+  var LOG_CAP = 50000;
+
+  // 220 cards: each number asked both ways. The log stores a card's index in this list.
+  var CARD_IDS = EXPECTED.map(function (n) { return "n:" + n; })
+    .concat(EXPECTED.map(function (n) { return "i:" + n; }));
+  var CARD_INDEX = {};
+  CARD_IDS.forEach(function (id, i) { CARD_INDEX[id] = i; });
+
+  var srs = loadSrs();
+  var srsLog = loadSrsLog();
+  var optimising = false;
+
+  function emptySrs() {
+    return { cards: {}, params: SRS.DEFAULT_PARAMS.slice(), fit: { stage: "default", n: 0, at: 0 } };
+  }
+
+  function loadSrs() {
+    try {
+      var parsed = JSON.parse(localStorage.getItem(SRS_KEY));
+      if (parsed && parsed.cards && Array.isArray(parsed.params) &&
+          parsed.params.length === SRS.DEFAULT_PARAMS.length && parsed.fit) return parsed;
+    } catch (e) { /* blocked or corrupt: start fresh */ }
+    return emptySrs();
+  }
+
+  function loadSrsLog() {
+    try {
+      var parsed = JSON.parse(localStorage.getItem(SRS_LOG_KEY));
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) { /* blocked or corrupt: start fresh */ }
+    return [];
+  }
+
+  function saveSrs() {
+    try {
+      localStorage.setItem(SRS_KEY, JSON.stringify(srs));
+      localStorage.setItem(SRS_LOG_KEY, JSON.stringify(srsLog));
+      storageOk = true;
+    } catch (e) {
+      storageOk = false;
+    }
+  }
+
+  function itemsByNum() {
+    var byNum = {};
+    items.forEach(function (it) { byNum[it.num] = it; });
+    return byNum;
+  }
+
+  // Card ids a mode can ask about (only numbers that have an image).
+  function cardPool(mode) {
+    var ids = [];
+    items.forEach(function (it) {
+      if (mode !== "images") ids.push("n:" + it.num);
+      if (mode !== "numbers") ids.push("i:" + it.num);
+    });
+    return ids;
+  }
+
+  // Order for introducing unpractised cards: weakest Performance % first, never-asked last.
+  function newCardPriority(id) {
+    var e = stats[id.charAt(0) === "n" ? "number" : "image"][id.slice(2)];
+    return e && e.total ? e.known / e.total : 2;
+  }
+
+  function scheduleAnswer(id, knew) {
+    var now = Date.now();
+    var g = knew ? SRS.GOOD : SRS.AGAIN;
+    srs.cards[id] = SRS.review(srs.cards[id], g, now, srs.params, id);
+    srsLog.push([CARD_INDEX[id], Math.round(now / 1000), g]);
+    if (srsLog.length > LOG_CAP) {
+      srsLog.splice(0, srsLog.length - LOG_CAP);
+      srs.fit.truncated = true; // early history gone: don't rebuild cards from the log any more
+    }
+    saveSrs();
+  }
+
+  function dueLabel(card, now) {
+    if (!card) return "New";
+    var ms = card.due - now;
+    if (ms <= 0) return "Due";
+    if (ms < 3600000) return "in " + Math.max(1, Math.round(ms / 60000)) + "m";
+    var hours = Math.round(ms / 3600000);
+    if (hours < 24) return "in " + hours + "h";
+    return "in " + Math.max(1, Math.round(ms / SRS.DAY_MS)) + "d";
+  }
+
+  function scheduleCounts(ids, now) {
+    var due = 0, fresh = 0, next = null;
+    ids.forEach(function (id) {
+      var c = srs.cards[id];
+      if (!c) fresh++;
+      else if (c.due <= now) due++;
+      else if (!next || c.due < next.due) next = c;
+    });
+    return { due: due, fresh: fresh, next: next };
+  }
+
+  function updateDueLine() {
+    var line = $("due-line");
+    if (!items.length) { line.textContent = ""; return; }
+    var now = Date.now();
+    var c = scheduleCounts(cardPool("mixed"), now);
+    var parts = [];
+    if (c.due) parts.push(c.due + " due for review");
+    if (c.fresh) parts.push(c.fresh + " not yet practised");
+    line.textContent = parts.length ? parts.join(" · ")
+      : "All caught up · next review " + dueLabel(c.next, now);
+  }
+
+  function maybeOptimise(force) {
+    if (optimising) return;
+    var n = srsLog.length, last = srs.fit.n || 0;
+    if (n < SRS.CONFIG.pretrainMin) return;
+    if (!force && n - last < Math.max(50, 0.2 * last)) return;
+
+    optimising = true;
+    renderModelLine();
+    var opt = new SRS.Optimiser(srsLog.slice(), srs.params);
+
+    // Run in short slices so the page stays responsive.
+    (function tick() {
+      var start = Date.now();
+      while (!opt.step()) {
+        if (Date.now() - start > 30) { setTimeout(tick, 0); return; }
+      }
+      var res = opt.result;
+      if (res.accepted) {
+        srs.params = res.params;
+        if (!srs.fit.truncated) srs.cards = SRS.rebuildCards(srsLog, CARD_IDS, srs.params);
+      }
+      srs.fit = {
+        stage: res.accepted ? res.stage : srs.fit.stage,
+        n: n,
+        at: Date.now(),
+        truncated: srs.fit.truncated,
+        lastCheck: { stage: res.stage, accepted: res.accepted }
+      };
+      saveSrs();
+      optimising = false;
+      if ($("screen-stats").classList.contains("active")) renderStats();
+      updateDueLine();
+    })();
+  }
+
+  function renderModelLine() {
+    var n = srsLog.length;
+    var text;
+    if (optimising) {
+      text = "Optimising your schedule…";
+    } else {
+      if (srs.fit.stage === "full") text = "Schedule fully personalised from " + srs.fit.n + " answers";
+      else if (srs.fit.stage === "pretrain") text = "Schedule partly personalised from " + srs.fit.n + " answers";
+      else if (n < SRS.CONFIG.pretrainMin) {
+        text = "Schedule uses FSRS default settings. Personalisation starts at " +
+          SRS.CONFIG.pretrainMin + " answers (you have " + n + ")";
+      } else text = "Schedule uses FSRS default settings · " + n + " answers logged";
+
+      var cal = SRS.calibration(srsLog, srs.params);
+      if (cal && cal.count >= 20) {
+        text += " · predicted recall " + Math.round(cal.predicted * 100) + "%, actual " +
+          Math.round(cal.actual * 100) + "%";
+      }
+      var lc = srs.fit.lastCheck;
+      if (lc && !lc.accepted && lc.stage !== "default") {
+        text += " · last check found no improvement, kept current settings";
+      }
+      text += ".";
+    }
+    $("stats-model").textContent = text;
+    var btn = $("btn-optimise");
+    btn.disabled = optimising || n < SRS.CONFIG.pretrainMin;
+    btn.textContent = optimising ? "Optimising…" : "Re-optimise now";
+  }
+
   function openStats(type, sort) {
     statsView.type = type;
     statsView.sort = sort;
@@ -279,20 +452,29 @@
     }
     $("stats-note").hidden = storageOk;
 
-    var byNum = {};
-    items.forEach(function (it) { byNum[it.num] = it; });
+    var byNum = itemsByNum();
+    var prefix = statsView.type === "number" ? "n:" : "i:";
+    var now = Date.now();
 
     var rows = EXPECTED.map(function (n, order) {
       var e = data[n];
+      var card = srs.cards[prefix + n];
       return {
         num: n,
         order: order,
         item: byNum[n],
         known: e ? e.known : 0,
         total: e ? e.total : 0,
-        pct: e && e.total ? e.known / e.total : null
+        pct: e && e.total ? e.known / e.total : null,
+        due: card ? card.due : Infinity,
+        dueText: dueLabel(card, now)
       };
     });
+
+    var sched = scheduleCounts(cardPool(statsView.type === "number" ? "numbers" : "images"), now);
+    $("stats-schedule").textContent = sched.due + " due now · " + sched.fresh + " not yet practised" +
+      (sched.due === 0 && sched.next ? " · next review " + dueLabel(sched.next, now) : "");
+    renderModelLine();
 
     var answers = 0, knownSum = 0, seen = 0;
     rows.forEach(function (r) {
@@ -312,6 +494,11 @@
           return a.pct === null ? 1 : -1;
         }
         return (a.pct - b.pct) || (b.total - a.total) || (a.order - b.order);
+      });
+    } else if (statsView.sort === "due") {
+      rows.sort(function (a, b) {
+        if (a.due === b.due) return a.order - b.order;
+        return a.due < b.due ? -1 : 1;
       });
     }
 
@@ -363,6 +550,10 @@
     pct.textContent = r.pct === null
       ? "—"
       : Math.round(r.pct * 100) + "% (" + r.known + "/" + r.total + ")";
+    var due = document.createElement("span");
+    due.className = "stats-due" + (r.dueText === "Due" ? " is-due" : "");
+    due.textContent = r.dueText;
+    pct.appendChild(due);
     li.appendChild(pct);
 
     return li;
@@ -405,11 +596,19 @@
     });
   }
   $("btn-stats-reset").addEventListener("click", function () {
-    if (!confirm("Reset all performance stats? This can't be undone.")) return;
+    if (!confirm("Reset all performance stats and your spaced-repetition schedule? " +
+                 "This can't be undone.")) return;
     stats = emptyStats();
-    try { localStorage.removeItem(STATS_KEY); } catch (e) { /* storage blocked */ }
+    srs = emptySrs();
+    srsLog = [];
+    try {
+      localStorage.removeItem(STATS_KEY);
+      localStorage.removeItem(SRS_KEY);
+      localStorage.removeItem(SRS_LOG_KEY);
+    } catch (e) { /* storage blocked */ }
     renderStats();
   });
+  $("btn-optimise").addEventListener("click", function () { maybeOptimise(true); });
 
   document.addEventListener("keydown", function (e) {
     if ($("screen-question").classList.contains("active")) {
@@ -423,4 +622,6 @@
 
   initSetPicker();
   initMenu();
+  updateDueLine();
+  setTimeout(function () { maybeOptimise(false); }, 1500);
 })();

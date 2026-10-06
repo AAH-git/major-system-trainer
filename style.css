@@ -363,3 +363,34 @@ h2 { text-align: center; margin: 24px 0 8px; }
 }
 
 .reset { margin-top: 20px; }
+
+/* ---------- Spaced repetition ---------- */
+.due-line {
+  text-align: center;
+  margin: -12px 0 20px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.sort-toggle { flex-wrap: wrap; }
+.stats-due {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.stats-due.is-due { color: var(--accent); font-weight: 600; }
+.model-box {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.model-box p { margin: 0; line-height: 1.4; }
+.model-box button { padding: 10px; font-size: 0.95rem; }
+.model-box button:disabled { opacity: 0.5; cursor: default; }
+.reset { margin-top: 12px; }

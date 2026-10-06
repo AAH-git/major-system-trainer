@@ -17,7 +17,8 @@
     <!-- Menu -->
     <section id="screen-menu" class="screen active">
       <h1>Major System Trainer</h1>
-      <p class="subtitle">Rounds of 10. Be honest with yourself.</p>
+      <p class="subtitle">Rounds of 10, picked by spaced repetition. Be honest with yourself.</p>
+      <p id="due-line" class="due-line"></p>
       <div id="manifest-warning" class="warning" hidden></div>
       <div class="mode-list">
         <button class="mode" data-mode="numbers">
@@ -95,12 +96,18 @@
         This browser is blocking storage (e.g. a private window), so your answers aren't being saved.
       </p>
       <p id="stats-summary" class="stats-summary"></p>
+      <p id="stats-schedule" class="stats-summary muted"></p>
       <div class="sort-toggle">
         <span class="muted">Sort:</span>
         <button class="sort" data-sort="number">By number</button>
         <button class="sort" data-sort="weakest">Weakest first</button>
+        <button class="sort" data-sort="due">Due soonest</button>
       </div>
       <ul id="stats-list" class="stats-list"></ul>
+      <div class="model-box">
+        <p id="stats-model" class="muted"></p>
+        <button id="btn-optimise" class="secondary">Re-optimise now</button>
+      </div>
       <button id="btn-stats-reset" class="secondary reset">Reset stats</button>
     </section>
 
@@ -121,6 +128,7 @@
   </main>
 
   <script src="manifest.js" charset="utf-8"></script>
+  <script src="srs.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

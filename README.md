@@ -50,6 +50,26 @@ Number questions and image questions are counted separately.
 - Clearing the browser's site data or cache resets them, and so does the **Reset stats** button.
 - Safari on iPhone and iPad may clear a site's saved data if you don't open it for about 7 days. A site added to the home screen is not affected.
 
+## Spaced repetition
+
+Rounds are picked by [FSRS-6](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm), the scheduler Anki uses by default. It runs entirely in [srs.js](srs.js) and works out when each of the 220 cards (110 numbers × asked both ways) should come back so you recall it about 90% of the time.
+
+- **"I know" counts as Good and "I don't know" counts as Again.** A missed card comes back after 10 minutes. A known card comes back after an interval that grows each time you remember it, capped at 60 days.
+- **Each round of 10 is filled in this order:**
+  1. one *check-up* slot for the memorised card (stability ≥ 21 days) checked longest ago
+  2. cards that are due, the ones you're most likely to have forgotten first
+  3. cards you haven't practised yet, your weakest Performance % first
+  4. if there's still room, cards that aren't due yet but are the least secure
+- **No two cards for the same number** are ever in one round.
+- **Personalisation:** every answer goes into a review log. From 50 answers the app fits your starting memory strength. From 400 it fits all the parameters that pass/fail answers can inform, and keeps the new ones only if they predict your most recent answers better. This runs automatically as the log grows, or when you press **Re-optimise now** on the Performance screen.
+- **Stored in the browser:** the schedule and log live in `localStorage` alongside the stats, and **Reset stats** clears them all.
+
+Run the scheduler tests with:
+
+```bash
+node tools/srs-test.js
+```
+
 ## 4. Publish
 
 Commit and push to GitHub. On GitHub, go to **Settings → Pages → Build and deployment**, set Source to *Deploy from a branch* and choose `main` / `(root)`.
